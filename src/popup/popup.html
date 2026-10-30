@@ -5,12 +5,14 @@
     <style>
       body { font: 14px system-ui, sans-serif; width: 260px; margin: 12px; }
       button { width: 100%; padding: 8px; font-size: 14px; }
+      #cancel { margin-top: 6px; }
       #status { margin-top: 8px; white-space: pre-line; min-height: 1.4em; word-break: break-word; }
       #status.error { color: #b00020; }
     </style>
   </head>
   <body>
     <button id="clip" type="button">Seite clippen</button>
+    <button id="cancel" type="button" hidden>Abbrechen</button>
     <div id="status" role="status" aria-live="polite"></div>
     <script src="popup.js" type="module"></script>
   </body>

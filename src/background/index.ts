@@ -4,13 +4,15 @@ import type { ClipResult } from '../lib/clip';
 
 const DEFAULT_SUBFOLDER = 'Clips';
 
-type ClipResponse = ({ ok: true } & ClipResult) | { ok: false; error: string };
+type ClipResponse = ({ ok: true; pages: number } & ClipResult) | { ok: false; error: string };
 
 export interface ClipSummary {
   ok: true;
   path: string;
   imagesSaved: number;
   imagesFailed: number;
+  pages: number;
+  warnings: string[];
 }
 
 async function save(path: string, content: string | Uint8Array, mime: string): Promise<void> {
@@ -24,14 +26,21 @@ async function save(path: string, content: string | Uint8Array, mime: string): P
 }
 
 async function clipTab(tabId: number): Promise<ClipSummary | { ok: false; error: string }> {
+  const {
+    subfolder = DEFAULT_SUBFOLDER,
+    downloadImages: withImages = true,
+    paginate = true,
+    maxPages = 50,
+    preferSinglePage = true,
+  } = await chrome.storage.sync.get(['subfolder', 'downloadImages', 'paginate', 'maxPages', 'preferSinglePage']);
+
   await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
-  const result: ClipResponse = await chrome.tabs.sendMessage(tabId, { type: 'do-clip' });
+  const result: ClipResponse = await chrome.tabs.sendMessage(tabId, {
+    type: 'do-clip',
+    options: { paginate, maxPages, preferSinglePage },
+  });
   if (!result.ok) return result;
 
-  const { subfolder = DEFAULT_SUBFOLDER, downloadImages: withImages = true } = await chrome.storage.sync.get([
-    'subfolder',
-    'downloadImages',
-  ]);
   const root = `${subfolder}/${result.folder}`;
 
   let outcome: ImageOutcome | undefined;
@@ -52,10 +61,16 @@ async function clipTab(tabId: number): Promise<ClipSummary | { ok: false; error:
     path: `${root}/index.md`,
     imagesSaved: outcome?.saved.size ?? 0,
     imagesFailed: withImages ? result.images.length - (outcome?.saved.size ?? 0) : 0,
+    pages: result.pages,
+    warnings: result.warnings,
   };
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === 'cancel') {
+    void chrome.tabs.sendMessage(message.tabId, { type: 'cancel' }).catch(() => {});
+    return;
+  }
   if (message?.type !== 'clip') return;
   clipTab(message.tabId).then(sendResponse, (error) =>
     sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) }),
