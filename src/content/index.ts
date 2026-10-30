@@ -1,4 +1,4 @@
-import { clipPages } from '../lib/clip';
+import { clipPages, clipSelection, type ClipResult } from '../lib/clip';
 import { collectPages, type PageInput } from '../lib/pagination';
 
 declare global {
@@ -8,6 +8,8 @@ declare global {
 }
 
 interface ClipOptions {
+  /** auto: Auswahl, falls vorhanden, sonst ganze Seite */
+  mode: 'auto' | 'page' | 'selection';
   paginate: boolean;
   maxPages: number;
   preferSinglePage: boolean;
@@ -23,8 +25,21 @@ async function fetchPage(url: string): Promise<PageInput> {
   return { doc, url: response.url || url };
 }
 
-async function clip(options: ClipOptions) {
+function selectionHtml(): string | undefined {
+  const selection = getSelection();
+  if (!selection || selection.isCollapsed || !selection.toString().trim()) return undefined;
+  const wrapper = document.createElement('div');
+  for (let i = 0; i < selection.rangeCount; i++) wrapper.append(selection.getRangeAt(i).cloneContents());
+  return wrapper.innerHTML;
+}
+
+async function clip(options: ClipOptions): Promise<ClipResult & { pages: number }> {
   cancelled = false;
+  if (options.mode !== 'page') {
+    const html = selectionHtml();
+    if (html) return { ...clipSelection(html, document, location.href), pages: 1 };
+    if (options.mode === 'selection') throw new Error('Keine Auswahl');
+  }
   const first: PageInput = { doc: document, url: location.href };
   const collected = options.paginate
     ? await collectPages(first, {

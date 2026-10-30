@@ -1,16 +1,14 @@
 import { Readability } from '@mozilla/readability';
-import { buildFrontmatter } from './frontmatter';
+import { buildFrontmatter, type FrontmatterInput } from './frontmatter';
 import { htmlToMarkdown } from './markdown';
 import { resolveImages, tokenizeImages, type ImageRef } from './images';
-import { extractMeta } from './meta';
+import { extractMeta, type ArticleMeta } from './meta';
 import { stripPageChrome, type PageInput } from './pagination';
-import { slugify } from './slug';
 
 /** Löst relative Links gegen die Seiten-URL auf; DOMParser-Dokumente (spätere Folgeseiten) kennen keine baseURI. */
-function absolutizeLinks(doc: Document, url: string): void {
-  const baseHref = doc.querySelector('base[href]')?.getAttribute('href');
+function absolutizeLinks(root: ParentNode, url: string, baseHref?: string | null): void {
   const base = baseHref ? new URL(baseHref, url).href : url;
-  for (const a of doc.querySelectorAll('a[href]')) {
+  for (const a of root.querySelectorAll('a[href]')) {
     const href = a.getAttribute('href')!;
     if (href.startsWith('#')) continue; // Anker im Artikel bleiben relativ
     try {
@@ -29,13 +27,47 @@ function stripSiteSuffix(title: string, site?: string): string {
 }
 
 export interface ClipResult {
-  folder: string;
+  /** Frontmatter-Daten; die Vorschau darf Titel, Autor und Datum ändern. */
+  meta: FrontmatterInput;
+  /** Markdown ohne Frontmatter und ohne Titelüberschrift. */
+  body: string;
+  /** Fertiges Dokument aus `meta` und `body`. */
   markdown: string;
   title: string;
   /** Bilder im Markdown, referenziert über Tokens (`clipper-img:N`). */
   images: ImageRef[];
   /** Hinweise zu übersprungenen oder unvollständigen Seiten. */
   warnings: string[];
+  /** Nur der markierte Bereich wurde gesichert. */
+  selection?: boolean;
+}
+
+/** Setzt Frontmatter, Titelüberschrift und Body zusammen. */
+export function assembleMarkdown(meta: FrontmatterInput, body: string): string {
+  const heading = body.startsWith('# ') || !meta.title ? '' : `# ${meta.title}\n\n`;
+  return `${buildFrontmatter(meta)}\n${heading}${body}`;
+}
+
+function buildResult(
+  container: Element,
+  meta: ArticleMeta,
+  title: string,
+  byline: string | undefined,
+  pages: number,
+  now: Date,
+  warnings: string[],
+  selection?: boolean,
+): ClipResult {
+  const images = tokenizeImages(container);
+  const body = htmlToMarkdown(container.innerHTML);
+  const frontmatter: FrontmatterInput = {
+    ...meta,
+    title,
+    author: meta.author ?? byline,
+    clipped: now.toISOString(),
+    pages,
+  };
+  return { meta: frontmatter, body, markdown: assembleMarkdown(frontmatter, body), title, images, warnings, selection };
 }
 
 interface Extracted {
@@ -47,7 +79,7 @@ interface Extracted {
 /** Hauptinhalt einer Seite per Readability; arbeitet auf einem Klon. */
 function extractPage({ doc, url }: PageInput): Extracted | null {
   const clone = doc.cloneNode(true) as Document;
-  absolutizeLinks(clone, url);
+  absolutizeLinks(clone, url, clone.querySelector('base[href]')?.getAttribute('href'));
   resolveImages(clone, url);
   const article = new Readability(clone).parse();
   if (!article?.content) return null;
@@ -84,21 +116,22 @@ export function clipPages(pages: PageInput[], metaDoc: Document, metaUrl: string
     merged++;
   }
 
-  const images = tokenizeImages(container);
-  const body = htmlToMarkdown(container.innerHTML);
-  const frontmatter = buildFrontmatter({
-    ...meta,
-    title,
-    author: meta.author ?? byline,
-    clipped: now.toISOString(),
-    pages: pages.length,
-  });
-  const heading = body.startsWith('# ') ? '' : `# ${title}\n\n`;
-  const date = now.toISOString().slice(0, 10);
-  return { folder: `${date}-${slugify(title!)}`, markdown: `${frontmatter}\n${heading}${body}`, title: title!, images, warnings };
+  return buildResult(container, meta, title!, byline, pages.length, now, warnings);
 }
 
 /** Wandelt ein einzelnes Dokument in Markdown um. Das Dokument wird nicht verändert (Klon). */
 export function clipDocument(doc: Document, url: string, now = new Date()): ClipResult {
   return clipPages([{ doc, url }], doc, url, now);
+}
+
+/** Sichert nur einen markierten Bereich (HTML-Fragment) statt des Readability-Artikels. */
+export function clipSelection(html: string, metaDoc: Document, metaUrl: string, now = new Date()): ClipResult {
+  const meta = extractMeta(metaDoc, metaUrl);
+  const container = metaDoc.implementation.createHTMLDocument('').body;
+  container.innerHTML = html;
+  absolutizeLinks(container, metaUrl, metaDoc.querySelector('base[href]')?.getAttribute('href'));
+  resolveImages(container, metaUrl);
+  if (!(container.textContent ?? '').trim() && !container.querySelector('img')) throw new Error('Keine Auswahl');
+  const title = stripSiteSuffix(meta.title || new URL(metaUrl).hostname, meta.site);
+  return buildResult(container, meta, title, undefined, 1, now, [], true);
 }

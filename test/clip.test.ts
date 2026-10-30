@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { clipDocument } from '../src/lib/clip';
+import { assembleMarkdown, clipDocument, clipSelection } from '../src/lib/clip';
 import { extractMeta, normalizeDate } from '../src/lib/meta';
 import { slugify } from '../src/lib/slug';
 
@@ -59,8 +59,14 @@ describe('clipDocument', () => {
     expect(result.markdown).toContain('[extern](https://other.example/x)');
   });
 
-  it('bildet Ordnernamen', () => {
-    expect(result.folder).toBe('2026-10-30-mein-artikel');
+  it('trennt Frontmatter-Daten und Body', () => {
+    expect(result.meta.author).toBe('Erika Mustermann');
+    expect(result.body).not.toContain('---');
+    expect(result.markdown).toBe(assembleMarkdown(result.meta, result.body));
+  });
+
+  it('bereinigt den Titel um den Seitennamen', () => {
+    expect(result.title).toBe('Mein Artikel');
   });
 
   it('wirft bei Seite ohne Inhalt', () => {
@@ -72,5 +78,22 @@ describe('slugify', () => {
   it('entfernt Umlaute und Sonderzeichen', () => {
     expect(slugify('Über Äpfel & Birnen!')).toBe('uber-apfel-birnen');
     expect(slugify('???')).toBe('artikel');
+  });
+});
+
+describe('clipSelection', () => {
+  const doc = parse(fixture);
+
+  it('sichert nur die Auswahl mit absoluten Links und Bildtokens', () => {
+    const result = clipSelection('<p>Kurzer Satz mit <a href="/x">Link</a></p><img src="b.png">', doc, URL_);
+    expect(result.selection).toBe(true);
+    expect(result.body).toContain('[Link](https://example.com/x)');
+    expect(result.body).not.toContain('Menü');
+    expect(result.images.map((i) => i.url)).toEqual(['https://example.com/blog/b.png']);
+    expect(result.meta.title).toBe('Mein Artikel');
+  });
+
+  it('wirft bei leerer Auswahl', () => {
+    expect(() => clipSelection('<p> </p>', doc, URL_)).toThrow('Keine Auswahl');
   });
 });

@@ -20,6 +20,7 @@ for (const target of targets) {
     entryPoints: {
       background: 'src/background/index.ts',
       popup: 'src/popup/popup.ts',
+      options: 'src/options/options.ts',
     },
     outdir: out,
     bundle: true,
@@ -36,6 +37,7 @@ for (const target of targets) {
     target: 'es2022',
   });
   copyFileSync('src/popup/popup.html', `${out}/popup.html`);
+  copyFileSync('src/options/options.html', `${out}/options.html`);
   writeFileSync(`${out}/manifest.json`, JSON.stringify(manifestFor[target](), null, 2));
   console.log(`built ${out}`);
 }

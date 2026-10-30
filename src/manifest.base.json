@@ -11,7 +11,8 @@
     "activeTab",
     "scripting",
     "downloads",
-    "storage"
+    "storage",
+    "contextMenus"
   ],
   "commands": {
     "_execute_action": {
@@ -22,5 +23,9 @@
   },
   "optional_host_permissions": [
     "<all_urls>"
-  ]
+  ],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  }
 }

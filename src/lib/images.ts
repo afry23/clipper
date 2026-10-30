@@ -62,8 +62,8 @@ export function bestImageSource(img: Element, base: string): string | undefined 
 }
 
 /** Setzt vor der Extraktion für jedes Bild die beste absolute Quelle als `src`. */
-export function resolveImages(doc: Document, base: string): void {
-  for (const img of doc.querySelectorAll('img')) {
+export function resolveImages(root: ParentNode, base: string): void {
+  for (const img of root.querySelectorAll('img')) {
     const src = bestImageSource(img, base);
     if (!src) continue;
     img.setAttribute('src', src);
