@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Clipper",
+  "version": "0.1.0",
+  "description": "Speichert Webseiten als Markdown mit lokalen Bildern.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Seite clippen"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "downloads",
+    "storage"
+  ],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+C"
+      }
+    }
+  },
+  "optional_host_permissions": [
+    "<all_urls>"
+  ]
+}
