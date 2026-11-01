@@ -24,14 +24,32 @@ function summaryText(result: ClipSummary): string {
 const draft = new URLSearchParams(location.search).get('draft');
 const key = `draft:${draft}`;
 
-async function discard(): Promise<void> {
+let originTabId: number | undefined;
+
+/** Bringt den geclippten Artikel-Tab (und sein Fenster) wieder nach vorn. */
+async function focusOrigin(): Promise<void> {
+  if (originTabId === undefined) return;
+  try {
+    const tab = await chrome.tabs.get(originTabId);
+    await chrome.tabs.update(originTabId, { active: true });
+    await chrome.windows.update(tab.windowId, { focused: true });
+  } catch {
+    /* Tab wurde inzwischen geschlossen */
+  }
+}
+
+async function finish(): Promise<void> {
   await chrome.storage.session.remove(key);
+  await focusOrigin();
   window.close();
 }
 
 async function main(): Promise<void> {
-  const stored = draft ? (await chrome.storage.session.get(key))[key] : undefined;
-  const payload = stored as (ClipResult & { pages: number }) | undefined;
+  const stored = (draft ? (await chrome.storage.session.get(key))[key] : undefined) as
+    | { payload: ClipResult & { pages: number }; originTabId?: number }
+    | undefined;
+  const payload = stored?.payload;
+  originTabId = stored?.originTabId;
   if (!payload) {
     $('#missing').hidden = false;
     return;
@@ -53,7 +71,7 @@ async function main(): Promise<void> {
     }),
   });
 
-  $('#discard').addEventListener('click', () => void discard());
+  $('#discard').addEventListener('click', () => void finish());
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -70,6 +88,8 @@ async function main(): Promise<void> {
     if (result?.ok) {
       show(summaryText(result));
       await chrome.storage.session.remove(key);
+      // Ohne Hinweise nach kurzer Bestätigung schließen; bei Warnungen oder fehlgeschlagenen Bildern offen lassen
+      if (result.warnings.length === 0 && result.imagesFailed === 0) setTimeout(() => void finish(), 1200);
     } else {
       show(result?.error ?? 'Unbekannter Fehler', true);
       save.disabled = false;

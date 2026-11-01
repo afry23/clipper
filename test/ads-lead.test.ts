@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { clipDocument } from '../src/lib/clip';
+import { clipDocument, clipPages } from '../src/lib/clip';
 
 const LONG = 'Dies ist ein ausreichend langer Absatz mit viel Text, damit Readability ihn sicher als Artikel erkennt. '.repeat(6);
 
@@ -40,5 +40,12 @@ describe('Werbung und Titelbild', () => {
   it('entfernt keinen Container, der den Artikel enthält', () => {
     const wrapped = `<div class="ad-wrapper ad--layout"><article><h1>Titel</h1><p>${LONG}</p><p>${LONG}</p></article></div>`;
     expect(clipDocument(page(wrapped), 'https://example.com/a').body).toContain('ausreichend langer Absatz');
+  });
+
+  it('lässt das Titelbild weg, wenn die Option aus ist', () => {
+    const head = '<meta property="og:image" content="/img/lead.jpg">';
+    const doc = page(article, head);
+    const result = clipPages([{ doc, url: 'https://example.com/a' }], doc, 'https://example.com/a', new Date(), { leadImage: false });
+    expect(result.images).toEqual([]);
   });
 });

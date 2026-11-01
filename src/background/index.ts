@@ -43,6 +43,7 @@ async function extract(tabId: number, mode: Mode, settings: Settings): Promise<P
       paginate: settings.paginate,
       maxPages: settings.maxPages,
       preferSinglePage: settings.preferSinglePage,
+      leadImage: settings.leadImage,
     },
   });
 }
@@ -90,10 +91,17 @@ async function clipTab(tabId: number, mode: Mode, allowPreview: boolean) {
   const payload = await extract(tabId, mode, settings);
   if (!payload.ok) return payload;
   if (allowPreview && settings.preview) {
-    // Popups schließen sich bei Fokusverlust: Entwurf in einem eigenen Tab bearbeiten
+    // Toolbar-Popups schließen sich bei Fokusverlust: Entwurf in einem eigenen Fenster bearbeiten
     const draft = crypto.randomUUID();
-    await chrome.storage.session.set({ [draftKey(draft)]: payload });
-    await chrome.tabs.create({ url: chrome.runtime.getURL(`editor.html?draft=${draft}`) });
+    await chrome.storage.session.set({ [draftKey(draft)]: { payload, originTabId: tabId } });
+    // Eigenes Popup-Fenster: schließt sich nicht bei Fokusverlust und lässt die Tab-Reihenfolge unberührt
+    await chrome.windows.create({
+      url: chrome.runtime.getURL(`editor.html?draft=${draft}`),
+      type: 'popup',
+      width: 960,
+      height: 780,
+      focused: true,
+    });
     return { ok: true as const, editor: true as const };
   }
   return store(payload, settings);
@@ -105,7 +113,7 @@ async function savePreview(payload: Payload, edits: Edits) {
   return store(applyEdits(payload, edits), await loadSettings());
 }
 
-// Entwürfe verfallen, wenn der Editor-Tab geschlossen wird; Aufräumen übernimmt der Editor selbst,
+// Entwürfe verfallen, wenn das Editor-Fenster geschlossen wird; Aufräumen übernimmt der Editor selbst,
 // hier nur das Sicherheitsnetz für Entwürfe verwaister Tabs.
 chrome.tabs.onRemoved.addListener(async () => {
   const urls = new Set((await chrome.tabs.query({})).map((tab) => tab.url ?? ''));

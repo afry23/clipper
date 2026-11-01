@@ -133,7 +133,13 @@ function extractPage({ doc, url }: PageInput): Extracted | null {
  * Fügt die Artikel aller Seiten zu einem Markdown-Dokument zusammen.
  * Metadaten stammen aus `metaDoc` (der ursprünglich geöffneten Seite).
  */
-export function clipPages(pages: PageInput[], metaDoc: Document, metaUrl: string, now = new Date()): ClipResult {
+export function clipPages(
+  pages: PageInput[],
+  metaDoc: Document,
+  metaUrl: string,
+  now = new Date(),
+  options: { leadImage?: boolean } = {},
+): ClipResult {
   const meta = extractMeta(metaDoc, metaUrl);
   const warnings: string[] = [];
   const container = metaDoc.implementation.createHTMLDocument('').body;
@@ -159,7 +165,7 @@ export function clipPages(pages: PageInput[], metaDoc: Document, metaUrl: string
     merged++;
   }
 
-  addLeadImage(container, meta.image);
+  if (options.leadImage ?? true) addLeadImage(container, meta.image);
   return buildResult(container, meta, title!, byline, pages.length, now, warnings);
 }
 

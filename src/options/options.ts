@@ -10,6 +10,7 @@ function fill(settings: Settings): void {
   field<HTMLSelectElement>('format').value = settings.format;
   field<HTMLInputElement>('downloadImages').checked = settings.downloadImages;
   field<HTMLInputElement>('preview').checked = settings.preview;
+  field<HTMLInputElement>('leadImage').checked = settings.leadImage;
   field<HTMLInputElement>('paginate').checked = settings.paginate;
   field<HTMLInputElement>('preferSinglePage').checked = settings.preferSinglePage;
   field<HTMLInputElement>('maxPages').value = String(settings.maxPages);
@@ -24,6 +25,7 @@ form.addEventListener('submit', async (event) => {
       format: field<HTMLSelectElement>('format').value as Settings['format'],
       downloadImages: field<HTMLInputElement>('downloadImages').checked,
       preview: field<HTMLInputElement>('preview').checked,
+      leadImage: field<HTMLInputElement>('leadImage').checked,
       paginate: field<HTMLInputElement>('paginate').checked,
       preferSinglePage: field<HTMLInputElement>('preferSinglePage').checked,
       maxPages: Number(field<HTMLInputElement>('maxPages').value),

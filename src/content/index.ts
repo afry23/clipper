@@ -13,6 +13,7 @@ interface ClipOptions {
   paginate: boolean;
   maxPages: number;
   preferSinglePage: boolean;
+  leadImage: boolean;
 }
 
 let cancelled = false;
@@ -50,7 +51,7 @@ async function clip(options: ClipOptions): Promise<ClipResult & { pages: number 
         onProgress: (pages) => void chrome.runtime.sendMessage({ type: 'progress', pages }).catch(() => {}),
       })
     : { pages: [first], warnings: [] };
-  const result = clipPages(collected.pages, document, location.href);
+  const result = clipPages(collected.pages, document, location.href, new Date(), { leadImage: options.leadImage });
   return { ...result, warnings: [...collected.warnings, ...result.warnings], pages: collected.pages.length };
 }
 

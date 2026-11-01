@@ -7,6 +7,7 @@ export interface Settings {
   maxPages: number;
   preferSinglePage: boolean;
   preview: boolean;
+  leadImage: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -18,6 +19,7 @@ export const DEFAULT_SETTINGS: Settings = {
   maxPages: 50,
   preferSinglePage: true,
   preview: false,
+  leadImage: true,
 };
 
 /** Relativer Pfad unterhalb des Downloads-Ordners: keine `..`, keine absoluten Pfade, keine ungültigen Zeichen. */
@@ -41,6 +43,7 @@ export function sanitizeSettings(raw: Partial<Settings>): Settings {
     maxPages: Number.isFinite(maxPages) ? Math.min(200, Math.max(1, maxPages)) : DEFAULT_SETTINGS.maxPages,
     preferSinglePage: !!merged.preferSinglePage,
     preview: !!merged.preview,
+    leadImage: !!merged.leadImage,
   };
 }
 
