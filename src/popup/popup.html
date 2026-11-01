@@ -4,17 +4,11 @@
     <meta charset="utf-8" />
     <style>
       body { font: 14px system-ui, sans-serif; width: 260px; margin: 12px; }
-      body.wide { width: 380px; }
       button { width: 100%; padding: 8px; font-size: 14px; }
       #cancel { margin-top: 6px; }
       #status { margin-top: 8px; min-height: 1.4em; white-space: pre-line; word-break: break-word; }
       #status.error { color: #b00020; }
       #settings { display: block; margin-top: 8px; font-size: 12px; text-align: center; }
-      #preview label { display: block; margin: 6px 0 2px; font-size: 12px; }
-      #preview input { width: 100%; box-sizing: border-box; padding: 4px; font: inherit; }
-      #excerpt { max-height: 160px; overflow: auto; margin: 8px 0; padding: 6px; background: #f4f4f4; font: 12px ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; }
-      #info { font-size: 12px; color: #555; }
-      .row { display: flex; gap: 6px; }
     </style>
   </head>
   <body>
@@ -23,20 +17,6 @@
       <button id="cancel" type="button" hidden>Abbrechen</button>
       <a id="settings" href="#">Einstellungen</a>
     </div>
-    <form id="preview" hidden>
-      <label for="p-title">Titel</label>
-      <input id="p-title" />
-      <label for="p-author">Autor</label>
-      <input id="p-author" />
-      <label for="p-published">Veröffentlicht</label>
-      <input id="p-published" placeholder="YYYY-MM-DD" />
-      <div id="info"></div>
-      <div id="excerpt" tabindex="0"></div>
-      <div class="row">
-        <button id="save" type="submit">Speichern</button>
-        <button id="discard" type="button">Verwerfen</button>
-      </div>
-    </form>
     <div id="status" role="status" aria-live="polite"></div>
     <script src="popup.js" type="module"></script>
   </body>

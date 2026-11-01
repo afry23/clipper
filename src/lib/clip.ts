@@ -19,6 +19,48 @@ function absolutizeLinks(root: ParentNode, url: string, baseHref?: string | null
   }
 }
 
+/**
+ * Werbeblöcke und Video-Player, die Readability als Artikelinhalt durchlässt (z. B. heise: `div.ad.ad--inread`
+ * mit `<a-video>`). Bewusst eng gefasst, damit echte Inhalte nicht verloren gehen.
+ */
+export const AD_SELECTOR = [
+  '.ad',
+  '[class*="ad--"]',
+  '[class*="ad-label" i]',
+  '[class*="advert" i]',
+  '[id^="ad-"]',
+  '[id*="advert" i]',
+  '[data-ad]',
+  '[aria-label*="werbung" i]',
+  '[aria-label*="advertisement" i]',
+  'a-video',
+  'ins.adsbygoogle',
+].join(',');
+
+export function stripAds(root: ParentNode): void {
+  for (const el of root.querySelectorAll(AD_SELECTOR)) {
+    // Nie einen Container entfernen, der den eigentlichen Artikel enthält
+    if (el.matches('html, body') || el.querySelector('article, main')) continue;
+    el.remove();
+  }
+}
+
+/** Hängt das Titelbild vorn an, falls der Artikel nicht schon vor dem ersten Absatz ein Bild hat. */
+export function addLeadImage(container: Element, imageUrl: string | undefined, alt = ''): void {
+  if (!imageUrl) return;
+  const firstParagraph = container.querySelector('p');
+  for (const img of container.querySelectorAll('img')) {
+    const before = !firstParagraph || !!(img.compareDocumentPosition(firstParagraph) & Node.DOCUMENT_POSITION_FOLLOWING);
+    if (before) return;
+  }
+  const img = container.ownerDocument.createElement('img');
+  img.setAttribute('src', imageUrl);
+  if (alt) img.setAttribute('alt', alt);
+  const wrapper = container.ownerDocument.createElement('p');
+  wrapper.append(img);
+  container.prepend(wrapper);
+}
+
 /** Entfernt ein angehängtes " | Seitenname" aus dem Titel. */
 function stripSiteSuffix(title: string, site?: string): string {
   if (!site) return title;
@@ -81,6 +123,7 @@ function extractPage({ doc, url }: PageInput): Extracted | null {
   const clone = doc.cloneNode(true) as Document;
   absolutizeLinks(clone, url, clone.querySelector('base[href]')?.getAttribute('href'));
   resolveImages(clone, url);
+  stripAds(clone);
   const article = new Readability(clone).parse();
   if (!article?.content) return null;
   return { title: article.title?.trim() || undefined, byline: article.byline?.trim() || undefined, content: article.content };
@@ -116,6 +159,7 @@ export function clipPages(pages: PageInput[], metaDoc: Document, metaUrl: string
     merged++;
   }
 
+  addLeadImage(container, meta.image);
   return buildResult(container, meta, title!, byline, pages.length, now, warnings);
 }
 

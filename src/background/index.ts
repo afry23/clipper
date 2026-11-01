@@ -1,5 +1,6 @@
 import { downloadImages, rewriteMarkdown, type ImageOutcome } from '../lib/assets';
-import { assembleMarkdown, type ClipResult } from '../lib/clip';
+import type { ClipResult } from '../lib/clip';
+import { applyEdits, type Edits } from '../lib/edits';
 import { toDownloadUrl } from '../lib/files';
 import { folderName } from '../lib/naming';
 import { loadSettings, type Settings } from '../lib/settings';
@@ -19,11 +20,7 @@ export interface ClipSummary {
   selection: boolean;
 }
 
-export interface Edits {
-  title?: string;
-  author?: string;
-  published?: string;
-}
+export type { Edits };
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -48,22 +45,6 @@ async function extract(tabId: number, mode: Mode, settings: Settings): Promise<P
       preferSinglePage: settings.preferSinglePage,
     },
   });
-}
-
-/** Übernimmt Änderungen aus der Vorschau; leere Felder entfernen den Eintrag. */
-function applyEdits(payload: Payload, edits: Edits): Payload {
-  const meta = { ...payload.meta };
-  const set = (key: 'title' | 'author' | 'published', value: string | undefined) => {
-    if (value === undefined) return;
-    const trimmed = value.trim();
-    if (trimmed) meta[key] = trimmed;
-    else delete meta[key];
-  };
-  set('title', edits.title);
-  set('author', edits.author);
-  set('published', edits.published);
-  const title = meta.title ?? payload.title;
-  return { ...payload, meta, title, markdown: assembleMarkdown(meta, payload.body) };
 }
 
 async function store(payload: Payload, settings: Settings): Promise<ClipSummary> {
@@ -108,13 +89,32 @@ async function clipTab(tabId: number, mode: Mode, allowPreview: boolean) {
   const settings = await loadSettings();
   const payload = await extract(tabId, mode, settings);
   if (!payload.ok) return payload;
-  if (allowPreview && settings.preview) return { ok: true as const, preview: true as const, payload };
+  if (allowPreview && settings.preview) {
+    // Popups schließen sich bei Fokusverlust: Entwurf in einem eigenen Tab bearbeiten
+    const draft = crypto.randomUUID();
+    await chrome.storage.session.set({ [draftKey(draft)]: payload });
+    await chrome.tabs.create({ url: chrome.runtime.getURL(`editor.html?draft=${draft}`) });
+    return { ok: true as const, editor: true as const };
+  }
   return store(payload, settings);
 }
+
+const draftKey = (draft: string) => `draft:${draft}`;
 
 async function savePreview(payload: Payload, edits: Edits) {
   return store(applyEdits(payload, edits), await loadSettings());
 }
+
+// Entwürfe verfallen, wenn der Editor-Tab geschlossen wird; Aufräumen übernimmt der Editor selbst,
+// hier nur das Sicherheitsnetz für Entwürfe verwaister Tabs.
+chrome.tabs.onRemoved.addListener(async () => {
+  const urls = new Set((await chrome.tabs.query({})).map((tab) => tab.url ?? ''));
+  const stored = await chrome.storage.session.get(null);
+  const stale = Object.keys(stored).filter(
+    (key) => key.startsWith('draft:') && ![...urls].some((url) => url.includes(`draft=${key.slice(6)}`)),
+  );
+  if (stale.length > 0) await chrome.storage.session.remove(stale);
+});
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   let work: Promise<unknown> | undefined;
@@ -154,7 +154,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (tab?.id === undefined) return;
   try {
     const result = await clipTab(tab.id, info.menuItemId === MENU_SELECTION ? 'selection' : 'page', false);
-    if ('ok' in result && result.ok && !('preview' in result)) flashBadge('✓', '#2e7d32');
+    if ('ok' in result && result.ok) flashBadge('✓', '#2e7d32');
     else flashBadge('!', '#b00020');
   } catch {
     flashBadge('!', '#b00020');

@@ -71,6 +71,14 @@ export function resolveImages(root: ParentNode, base: string): void {
   }
 }
 
+/** Behält nur Bilder, deren Token noch im (bearbeiteten) Markdown vorkommt; `clipper-img:1` trifft nicht `clipper-img:10`. */
+export function pruneImages(body: string, images: ImageRef[]): ImageRef[] {
+  return images.filter((image) => {
+    const escaped = image.token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`${escaped}(?!\\d)`).test(body);
+  });
+}
+
 /**
  * Ersetzt jedes `src` im Container durch einen Token (`clipper-img:N`) und liefert die Zuordnung.
  * Gleiche URLs teilen sich einen Token. Bilder ohne Quelle werden entfernt.

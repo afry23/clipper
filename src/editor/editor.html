@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Clipper – Bearbeiten</title>
+    <style>
+      body { font: 14px system-ui, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+      form { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 12px 16px; gap: 8px; }
+      .meta { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; }
+      label { display: block; font-size: 12px; margin-bottom: 2px; }
+      input { width: 100%; box-sizing: border-box; padding: 4px; font: inherit; }
+      #info { font-size: 12px; color: #555; }
+      #editor { flex: 1; min-height: 0; border: 1px solid #ccc; overflow: hidden; }
+      #editor .cm-editor { height: 100%; }
+      #editor .cm-scroller { font: 13px ui-monospace, monospace; }
+      .row { display: flex; gap: 8px; align-items: center; }
+      button { padding: 6px 16px; font-size: 14px; }
+      #status { white-space: pre-line; word-break: break-word; }
+      #status.error { color: #b00020; }
+    </style>
+  </head>
+  <body>
+    <form id="form" hidden>
+      <div class="meta">
+        <div><label for="e-title">Titel</label><input id="e-title" /></div>
+        <div><label for="e-author">Autor</label><input id="e-author" /></div>
+        <div><label for="e-published">Veröffentlicht</label><input id="e-published" placeholder="YYYY-MM-DD" /></div>
+      </div>
+      <div id="info"></div>
+      <div id="editor"></div>
+      <div class="row">
+        <button id="save" type="submit">Speichern</button>
+        <button id="discard" type="button">Verwerfen</button>
+        <div id="status" role="status" aria-live="polite"></div>
+      </div>
+    </form>
+    <div id="missing" hidden>Kein Entwurf gefunden. Bitte die Seite erneut clippen.</div>
+    <script src="editor.js" type="module"></script>
+  </body>
+</html>

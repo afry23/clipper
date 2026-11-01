@@ -4,6 +4,8 @@ export interface ArticleMeta {
   published?: string;
   site?: string;
   description?: string;
+  /** Titelbild (og:image / twitter:image), absolut aufgelöst. */
+  image?: string;
   source: string;
 }
 
@@ -15,6 +17,16 @@ function metaContent(doc: Document, ...selectors: string[]): string | undefined 
     if (value) return value;
   }
   return undefined;
+}
+
+function absoluteUrl(value: string | undefined, base: string): string | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value, base);
+    return /^https?:$/.test(url.protocol) ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function* walkJsonLd(node: unknown): Generator<JsonObject> {
@@ -89,6 +101,7 @@ export function extractMeta(doc: Document, url: string): ArticleMeta {
     ),
     site: metaContent(doc, 'meta[property="og:site_name"]'),
     description: metaContent(doc, 'meta[property="og:description"]', 'meta[name="description"]'),
+    image: absoluteUrl(metaContent(doc, 'meta[property="og:image"]', 'meta[name="twitter:image"]'), url),
     source,
   };
 }

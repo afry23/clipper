@@ -4,8 +4,6 @@ const $ = <T extends HTMLElement>(selector: string) => document.querySelector<T>
 const button = $<HTMLButtonElement>('#clip');
 const cancelButton = $<HTMLButtonElement>('#cancel');
 const statusEl = $<HTMLDivElement>('#status');
-const mainEl = $<HTMLDivElement>('#main');
-const previewForm = $<HTMLFormElement>('#preview');
 
 function show(text: string, isError = false): void {
   statusEl.textContent = text;
@@ -38,44 +36,6 @@ cancelButton.addEventListener('click', () => {
   cancelButton.disabled = true;
 });
 
-function showPreview(payload: any, hasHostAccess: boolean): Promise<void> {
-  document.body.classList.add('wide');
-  mainEl.hidden = true;
-  previewForm.hidden = false;
-  $<HTMLInputElement>('#p-title').value = payload.meta.title ?? '';
-  $<HTMLInputElement>('#p-author').value = payload.meta.author ?? '';
-  $<HTMLInputElement>('#p-published').value = payload.meta.published ?? '';
-  const parts = [`${payload.pages} Seite(n)`, `${payload.images.length} Bild(er)`];
-  if (payload.selection) parts.unshift('Auswahl');
-  $('#info').textContent = parts.join(' · ');
-  $('#excerpt').textContent = payload.body.slice(0, 1500);
-  show(payload.warnings.map((w: string) => `⚠ ${w}`).join('\n'));
-
-  return new Promise<void>((resolve) => {
-    $('#discard').onclick = () => {
-      show('Verworfen');
-      resolve();
-    };
-    previewForm.onsubmit = async (event) => {
-      event.preventDefault();
-      $<HTMLButtonElement>('#save').disabled = true;
-      show('Speichere …');
-      const edits = {
-        title: $<HTMLInputElement>('#p-title').value,
-        author: $<HTMLInputElement>('#p-author').value,
-        published: $<HTMLInputElement>('#p-published').value,
-      };
-      const result = await chrome.runtime.sendMessage({ type: 'save', payload, edits });
-      show(result?.ok ? summaryText(result, hasHostAccess) : (result?.error ?? 'Unbekannter Fehler'), !result?.ok);
-      resolve();
-    };
-  }).finally(() => {
-    previewForm.hidden = true;
-    mainEl.hidden = false;
-    document.body.classList.remove('wide');
-  });
-}
-
 button.addEventListener('click', async () => {
   // Muss vor jedem await stehen, sonst läuft die User-Geste ab. Bereits erteilte Rechte lösen keinen Dialog aus.
   const granted = chrome.permissions.request({ origins: ['<all_urls>'] });
@@ -90,7 +50,10 @@ button.addEventListener('click', async () => {
     activeTabId = tab.id;
     const result = await chrome.runtime.sendMessage({ type: 'clip', tabId: tab.id });
     cancelButton.hidden = true;
-    if (result?.preview) await showPreview(result.payload, hasHostAccess);
+    if (result?.editor) {
+      show('Editor geöffnet');
+      window.close();
+    }
     else if (result?.ok) show(summaryText(result, hasHostAccess));
     else show(result?.error ?? 'Unbekannter Fehler', true);
   } catch (error) {
