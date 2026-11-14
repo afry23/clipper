@@ -97,3 +97,29 @@ describe('clipSelection', () => {
     expect(() => clipSelection('<p> </p>', doc, URL_)).toThrow('Keine Auswahl');
   });
 });
+
+describe('Überschriften und Bildlinks', () => {
+  const page = `<!doctype html><html><head><title>T</title></head><body><article>
+<p>${'Einleitung mit genug Text für die Erkennung. '.repeat(20)}</p>
+<h2 class="header-anchor-post">Abschnitt Eins<div class="header-anchor-parent"><button aria-label="Link"></button></div></h2>
+<p>${'Text unter der Überschrift. '.repeat(30)}</p>
+<a class="image-link" href="https://cdn.example/image/fetch/https%3A%2F%2Fs3.example%2Ffoto.png"><picture><img src="https://cdn.example/foto.jpg" alt=""></picture></a>
+<p><a href="https://example.com/ziel"><img src="https://cdn.example/banner.jpg" alt=""></a></p>
+</article></body></html>`;
+
+  it('behält Überschriften mit Klassen wie header-anchor-post', () => {
+    const { body } = clipDocument(parse(page), URL_);
+    expect(body).toContain('## Abschnitt Eins');
+  });
+
+  it('entfernt den Link um ein Bild, das auf eine Bilddatei zeigt', () => {
+    const { body } = clipDocument(parse(page), URL_);
+    expect(body).toContain('![](clipper-img:');
+    expect(body).not.toContain('foto.png');
+  });
+
+  it('behält Links um Bilder, die auf andere Seiten zeigen', () => {
+    const { body } = clipDocument(parse(page), URL_);
+    expect(body).toContain('](https://example.com/ziel)');
+  });
+});

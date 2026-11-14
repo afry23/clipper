@@ -20,6 +20,16 @@ function absolutizeLinks(root: ParentNode, url: string, baseHref?: string | null
 }
 
 /**
+ * Readability wirft Elemente mit Klassen wie `header-anchor-post` als "unwahrscheinliche Kandidaten" weg
+ * (Muster `header`), auch Überschriften. Klassen von Überschriften sind für die Extraktion irrelevant.
+ */
+export function neutralizeHeadingClasses(root: ParentNode): void {
+  for (const heading of root.querySelectorAll('h1, h2, h3, h4, h5, h6')) {
+    heading.removeAttribute('class');
+  }
+}
+
+/**
  * Werbeblöcke und Video-Player, die Readability als Artikelinhalt durchlässt (z. B. heise: `div.ad.ad--inread`
  * mit `<a-video>`). Bewusst eng gefasst, damit echte Inhalte nicht verloren gehen.
  */
@@ -124,6 +134,7 @@ function extractPage({ doc, url }: PageInput): Extracted | null {
   absolutizeLinks(clone, url, clone.querySelector('base[href]')?.getAttribute('href'));
   resolveImages(clone, url);
   stripAds(clone);
+  neutralizeHeadingClasses(clone);
   const article = new Readability(clone).parse();
   if (!article?.content) return null;
   return { title: article.title?.trim() || undefined, byline: article.byline?.trim() || undefined, content: article.content };
